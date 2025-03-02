@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>עדכון שבועי - אלמוג עזריאל</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        input[type="file"] {
+            margin-top: 5px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>עדכון שבועי - אלמוג עזריאל</h2>
+
+    <form id="weekly-update-form" method="post" enctype="multipart/form-data">
+
+        <div class="form-group">
+            <label for="email">אימייל:</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+
+        <div class="form-group">
+            <label for="full-name">שם מלא:</label>
+            <input type="text" id="full-name" name="full-name" required>
+        </div>
+
+        <div class="form-group">
+            <label for="phone">מספר פלאפון:</label>
+            <input type="tel" id="phone" name="phone" required>
+        </div>
+
+        <div class="form-group">
+            <label for="weight-table">טבלת שקילות:</label>
+            <input type="file" id="weight-table" name="weight-table" accept="image/*" required>
+        </div>
+
+        <div class="form-group">
+            <label for="improvements">נקודות לשיפור:</label>
+            <textarea id="improvements" name="improvements" rows="4" required></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="preservation">נקודות לשימור:</label>
+            <textarea id="preservation" name="preservation" rows="4" required></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="training-schedule">מתי תתאמנו השבוע?</label>
+            <input type="text" id="training-schedule" name="training-schedule" required>
+        </div>
+
+        <button type="submit">הגש</button>
+
+    </form>
+
+    <script>
+        document.getElementById('weekly-update-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const fullName = document.getElementById('full-name').value;
+            const phone = document.getElementById('phone').value;
+            const improvements = document.getElementById('improvements').value;
+            const preservation = document.getElementById('preservation').value;
+            const trainingSchedule = document.getElementById('training-schedule').value;
+            const weightTable = document.getElementById('weight-table');
+
+            sendToGoogleSheets(email, fullName, phone, improvements, preservation, trainingSchedule, weightTable);
+        });
+
+       function sendToGoogleSheets(email, fullName, phone, improvements, preservation, trainingSchedule, weightTable) {
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbwSHJagkh-IQXOSbSTcQd-iaSobGspHzwzjTfrQ3HNfr9SLLQLuqYWvB3j5N0SsnheX/exec';
+
+        const reader = new FileReader();
+        reader.onloadend = function() {
+            const imageBase64 = reader.result;
+
+            const formData = new FormData();
+            formData.append('email', email);
+            formData.append('full-name', fullName);
+            formData.append('phone', phone);
+            formData.append('improvements', improvements);
+            formData.append('preservation', preservation);
+            formData.append('training-schedule', trainingSchedule);
+            formData.append('weightTable', imageBase64);
+
+            fetch(scriptUrl, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                console.log(data);
+                // בניית הודעת וואטסאפ לאחר העלאת התמונה
+                const whatsappMessage = `
+                עדכון שבועי:
+                אימייל: ${email}
+                שם מלא: ${fullName}
+                מספר פלאפון: ${phone}
+                נקודות לשיפור: ${improvements}
+                נקודות לשימור: ${preservation}
+                מתי תתאמנו השבוע?: ${trainingSchedule}
+                קישור לתמונה: ${data}
+                `;
+
+                const encodedMessage = encodeURIComponent(whatsappMessage);
+                const whatsappLink = `whatsapp://send?phone=+972543476768&text=${encodedMessage}`;
+
+                window.location.href = whatsappLink;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+        reader.readAsDataURL(weightTable.files[0]);
+    }
+    </script>
+
+</body>
+</html>
