@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html dir="rtl">
 <head>
     <title>עדכון שבועי - אלמוג עזריאל</title>
     <style>
@@ -35,6 +35,29 @@
             border-radius: 4px;
             cursor: pointer;
         }
+        .loading-spinner {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .image-preview {
+            display: none;
+            margin-top: 10px;
+            border: 2px solid green;
+            padding: 5px;
+            border-radius: 4px;
+            max-width: 200px; /* הגבלת רוחב התמונה */
+            max-height: 200px; /* הגבלת גובה התמונה */
+        }
     </style>
 </head>
 <body>
@@ -42,6 +65,13 @@
     <h2>עדכון שבועי - אלמוג עזריאל</h2>
 
     <form id="weekly-update-form" method="post" enctype="multipart/form-data">
+
+        <div class="form-group">
+            <label for="weight-table">טבלת שקילות:</label>
+            <input type="file" id="weight-table" name="weight-table" accept="image/*" required>
+            <div class="loading-spinner" id="image-loading-spinner"></div>
+            <img id="image-preview" class="image-preview" src="" alt="תצוגה מקדימה של התמונה">
+        </div>
 
         <div class="form-group">
             <label for="email">אימייל:</label>
@@ -55,12 +85,7 @@
 
         <div class="form-group">
             <label for="phone">מספר פלאפון:</label>
-            <input type="tel" id="phone" name="phone" required>
-        </div>
-
-        <div class="form-group">
-            <label for="weight-table">טבלת שקילות:</label>
-            <input type="file" id="weight-table" name="weight-table" accept="image/*" required>
+            <input type="tel" id="phone" name="phone" required pattern="[0-9]{9,13}" title="מספר פלאפון חייב להיות בין 9 ל-13 ספרות">
         </div>
 
         <div class="form-group">
@@ -78,11 +103,52 @@
             <input type="text" id="training-schedule" name="training-schedule" required>
         </div>
 
-        <button type="submit">הגש</button>
+        <button type="submit" id="submit-button" disabled>שלח</button>
+        <div class="loading-spinner" id="loading-spinner"></div>
 
     </form>
 
     <script>
+        let imageUrl = '';
+
+        document.getElementById('weight-table').addEventListener('change', function(event) {
+            const weightTable = event.target.files[0];
+            const imageLoadingSpinner = document.getElementById('image-loading-spinner');
+            const imagePreview = document.getElementById('image-preview');
+            imageLoadingSpinner.style.display = 'block';
+
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                const imageBase64 = reader.result;
+                imagePreview.src = imageBase64;
+                imagePreview.style.display = 'block';
+                uploadImage(imageBase64);
+            }
+            reader.readAsDataURL(weightTable);
+        });
+
+        function uploadImage(imageBase64) {
+    const scriptUrl = 'https://script.google.com/macros/s/AKfycbwSHJagkh-IQXOSbSTcQd-iaSobGspHzwzjTfrQ3HNfr9SLLQLuqYWvB3j5N0SsnheX/exec?action=uploadImage';
+
+    const formData = new FormData();
+    formData.append('imageBase64', imageBase64);
+
+    fetch(scriptUrl, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.text())
+    .then(data => {
+        imageUrl = data;
+        const imageLoadingSpinner = document.getElementById('image-loading-spinner');
+        imageLoadingSpinner.style.display = 'none';
+        document.getElementById('submit-button').disabled = false;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
         document.getElementById('weekly-update-form').addEventListener('submit', function(event) {
             event.preventDefault();
 
@@ -92,57 +158,62 @@
             const improvements = document.getElementById('improvements').value;
             const preservation = document.getElementById('preservation').value;
             const trainingSchedule = document.getElementById('training-schedule').value;
-            const weightTable = document.getElementById('weight-table');
 
-            sendToGoogleSheets(email, fullName, phone, improvements, preservation, trainingSchedule, weightTable);
+            const loadingSpinner = document.getElementById('loading-spinner');
+            loadingSpinner.style.display = 'block';
+
+            const submitButton = document.getElementById('submit-button');
+            submitButton.disabled = true;
+
+            sendToGoogleSheets(email, fullName, phone, improvements, preservation, trainingSchedule, imageUrl);
         });
 
-       function sendToGoogleSheets(email, fullName, phone, improvements, preservation, trainingSchedule, weightTable) {
-        const scriptUrl = 'https://script.google.com/macros/s/AKfycbwSHJagkh-IQXOSbSTcQd-iaSobGspHzwzjTfrQ3HNfr9SLLQLuqYWvB3j5N0SsnheX/exec';
+        function sendToGoogleSheets(email, fullName, phone, improvements, preservation, trainingSchedule) {
+    const scriptUrl = 'https://script.google.com/macros/s/AKfycbwSHJagkh-IQXOSbSTcQd-iaSobGspHzwzjTfrQ3HNfr9SLLQLuqYWvB3j5N0SsnheX/exec';
 
-        const reader = new FileReader();
-        reader.onloadend = function() {
-            const imageBase64 = reader.result;
+    const formData = new FormData();
+    formData.append('email', email);
+    formData.append('full-name', fullName);
+    formData.append('phone', phone);
+    formData.append('improvements', improvements);
+    formData.append('preservation', preservation);
+    formData.append('training-schedule', trainingSchedule);
+    formData.append('imageUrl', imageUrl);
 
-            const formData = new FormData();
-            formData.append('email', email);
-            formData.append('full-name', fullName);
-            formData.append('phone', phone);
-            formData.append('improvements', improvements);
-            formData.append('preservation', preservation);
-            formData.append('training-schedule', trainingSchedule);
-            formData.append('weightTable', imageBase64);
+    fetch(scriptUrl, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.text())
+    .then(data => {
+        console.log(data);
+        // בניית הודעת וואטסאפ לאחר העלאת התמונה
+        const whatsappMessage = `
+        עדכון שבועי:
+        אימייל: ${email}
+        שם מלא: ${fullName}
+        מספר פלאפון: ${phone}
+        נקודות לשיפור: ${improvements}
+        נקודות לשימור: ${preservation}
+        מתי תתאמנו השבוע?: ${trainingSchedule}
+        קישור לתמונה: ${imageUrl}
+        `;
 
-            fetch(scriptUrl, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.text())
-            .then(data => {
-                console.log(data);
-                // בניית הודעת וואטסאפ לאחר העלאת התמונה
-                const whatsappMessage = `
-                עדכון שבועי:
-                אימייל: ${email}
-                שם מלא: ${fullName}
-                מספר פלאפון: ${phone}
-                נקודות לשיפור: ${improvements}
-                נקודות לשימור: ${preservation}
-                מתי תתאמנו השבוע?: ${trainingSchedule}
-                קישור לתמונה: ${data}
-                `;
+        const encodedMessage = encodeURIComponent(whatsappMessage);
+        const whatsappLink = `whatsapp://send?phone=+972524538580&text=${encodedMessage}`;
 
-                const encodedMessage = encodeURIComponent(whatsappMessage);
-                const whatsappLink = `whatsapp://send?phone=+972524538580&text=${encodedMessage}`;
-
-                window.location.href = whatsappLink;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
-        }
-        reader.readAsDataURL(weightTable.files[0]);
-    }
+        window.location.href = whatsappLink;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    })
+    .finally(() => {
+        const loadingSpinner = document.getElementById('loading-spinner');
+        loadingSpinner.style.display = 'none';
+        const submitButton = document.getElementById('submit-button');
+        submitButton.disabled = false;
+    });
+}
     </script>
 
 </body>
